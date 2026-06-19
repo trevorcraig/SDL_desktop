@@ -1,0 +1,1 @@
+  -L"C:/libs/SDL3-3.4.0/x86_64-w64-mingw32/lib"  -L"C:/libs/SDL3_ttf-3.2.2/x86_64-w64-mingw32/lib"  -L"C:/libs/SDL3_image-3.4.0/x86_64-w64-mingw32/lib"  libsdl_desktop_lib.a -lSDL3 -lSDL3_ttf -lSDL3_image -lcomdlg32 -lm -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32 

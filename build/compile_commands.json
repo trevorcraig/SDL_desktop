@@ -1,0 +1,56 @@
+[
+{
+  "directory": "D:/SDL_desktop/build",
+  "command": "D:/trevordevtools/w64devkit/bin/gcc.exe  @CMakeFiles/sdl_desktop_lib.dir/includes_C.rsp -g -o CMakeFiles/sdl_desktop_lib.dir/src/button.c.obj -c D:/SDL_desktop/src/button.c",
+  "file": "D:/SDL_desktop/src/button.c",
+  "output": "CMakeFiles/sdl_desktop_lib.dir/src/button.c.obj"
+},
+{
+  "directory": "D:/SDL_desktop/build",
+  "command": "D:/trevordevtools/w64devkit/bin/gcc.exe  @CMakeFiles/sdl_desktop_lib.dir/includes_C.rsp -g -o CMakeFiles/sdl_desktop_lib.dir/src/label.c.obj -c D:/SDL_desktop/src/label.c",
+  "file": "D:/SDL_desktop/src/label.c",
+  "output": "CMakeFiles/sdl_desktop_lib.dir/src/label.c.obj"
+},
+{
+  "directory": "D:/SDL_desktop/build",
+  "command": "D:/trevordevtools/w64devkit/bin/gcc.exe  @CMakeFiles/sdl_desktop_lib.dir/includes_C.rsp -g -o CMakeFiles/sdl_desktop_lib.dir/src/panel.c.obj -c D:/SDL_desktop/src/panel.c",
+  "file": "D:/SDL_desktop/src/panel.c",
+  "output": "CMakeFiles/sdl_desktop_lib.dir/src/panel.c.obj"
+},
+{
+  "directory": "D:/SDL_desktop/build",
+  "command": "D:/trevordevtools/w64devkit/bin/gcc.exe  @CMakeFiles/sdl_desktop_lib.dir/includes_C.rsp -g -o CMakeFiles/sdl_desktop_lib.dir/src/widget.c.obj -c D:/SDL_desktop/src/widget.c",
+  "file": "D:/SDL_desktop/src/widget.c",
+  "output": "CMakeFiles/sdl_desktop_lib.dir/src/widget.c.obj"
+},
+{
+  "directory": "D:/SDL_desktop/build",
+  "command": "D:/trevordevtools/w64devkit/bin/gcc.exe  @CMakeFiles/sdl_desktop_lib.dir/includes_C.rsp -g -o CMakeFiles/sdl_desktop_lib.dir/src/textbox.c.obj -c D:/SDL_desktop/src/textbox.c",
+  "file": "D:/SDL_desktop/src/textbox.c",
+  "output": "CMakeFiles/sdl_desktop_lib.dir/src/textbox.c.obj"
+},
+{
+  "directory": "D:/SDL_desktop/build",
+  "command": "D:/trevordevtools/w64devkit/bin/gcc.exe  @CMakeFiles/sdl_desktop_lib.dir/includes_C.rsp -g -o CMakeFiles/sdl_desktop_lib.dir/src/window.c.obj -c D:/SDL_desktop/src/window.c",
+  "file": "D:/SDL_desktop/src/window.c",
+  "output": "CMakeFiles/sdl_desktop_lib.dir/src/window.c.obj"
+},
+{
+  "directory": "D:/SDL_desktop/build",
+  "command": "D:/trevordevtools/w64devkit/bin/gcc.exe  @CMakeFiles/sdl_desktop_lib.dir/includes_C.rsp -g -o CMakeFiles/sdl_desktop_lib.dir/src/menu_bar.c.obj -c D:/SDL_desktop/src/menu_bar.c",
+  "file": "D:/SDL_desktop/src/menu_bar.c",
+  "output": "CMakeFiles/sdl_desktop_lib.dir/src/menu_bar.c.obj"
+},
+{
+  "directory": "D:/SDL_desktop/build",
+  "command": "D:/trevordevtools/w64devkit/bin/gcc.exe  @CMakeFiles/sdl_desktop_lib.dir/includes_C.rsp -g -o CMakeFiles/sdl_desktop_lib.dir/src/file_dialog.c.obj -c D:/SDL_desktop/src/file_dialog.c",
+  "file": "D:/SDL_desktop/src/file_dialog.c",
+  "output": "CMakeFiles/sdl_desktop_lib.dir/src/file_dialog.c.obj"
+},
+{
+  "directory": "D:/SDL_desktop/build",
+  "command": "D:/trevordevtools/w64devkit/bin/gcc.exe  @CMakeFiles/demo_main.dir/includes_C.rsp -g -o CMakeFiles/demo_main.dir/examples/main.c.obj -c D:/SDL_desktop/examples/main.c",
+  "file": "D:/SDL_desktop/examples/main.c",
+  "output": "CMakeFiles/demo_main.dir/examples/main.c.obj"
+}
+]

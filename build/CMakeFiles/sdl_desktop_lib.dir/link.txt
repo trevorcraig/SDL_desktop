@@ -1,0 +1,2 @@
+D:/trevordevtools/w64devkit/bin/ar.exe qc libsdl_desktop_lib.a CMakeFiles/sdl_desktop_lib.dir/src/button.c.obj CMakeFiles/sdl_desktop_lib.dir/src/label.c.obj CMakeFiles/sdl_desktop_lib.dir/src/panel.c.obj CMakeFiles/sdl_desktop_lib.dir/src/widget.c.obj CMakeFiles/sdl_desktop_lib.dir/src/textbox.c.obj CMakeFiles/sdl_desktop_lib.dir/src/window.c.obj CMakeFiles/sdl_desktop_lib.dir/src/menu_bar.c.obj CMakeFiles/sdl_desktop_lib.dir/src/file_dialog.c.obj
+D:/trevordevtools/w64devkit/bin/ranlib.exe libsdl_desktop_lib.a
