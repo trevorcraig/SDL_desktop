@@ -52,5 +52,11 @@
   "command": "D:/trevordevtools/w64devkit/bin/gcc.exe  @CMakeFiles/demo_main.dir/includes_C.rsp -g -o CMakeFiles/demo_main.dir/examples/main.c.obj -c D:/SDL_desktop/examples/main.c",
   "file": "D:/SDL_desktop/examples/main.c",
   "output": "CMakeFiles/demo_main.dir/examples/main.c.obj"
+},
+{
+  "directory": "D:/SDL_desktop/build",
+  "command": "D:/trevordevtools/w64devkit/bin/gcc.exe  @CMakeFiles/demo_calculator.dir/includes_C.rsp -g -o CMakeFiles/demo_calculator.dir/examples/calculator.c.obj -c D:/SDL_desktop/examples/calculator.c",
+  "file": "D:/SDL_desktop/examples/calculator.c",
+  "output": "CMakeFiles/demo_calculator.dir/examples/calculator.c.obj"
 }
 ]

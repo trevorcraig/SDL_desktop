@@ -142,6 +142,43 @@ demo_main/fast:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/demo_main.dir/build.make CMakeFiles/demo_main.dir/build
 .PHONY : demo_main/fast
 
+#=============================================================================
+# Target rules for targets named demo_calculator
+
+# Build rule for target.
+demo_calculator: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 demo_calculator
+.PHONY : demo_calculator
+
+# fast build rule for target.
+demo_calculator/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/demo_calculator.dir/build.make CMakeFiles/demo_calculator.dir/build
+.PHONY : demo_calculator/fast
+
+examples/calculator.obj: examples/calculator.c.obj
+.PHONY : examples/calculator.obj
+
+# target to build an object file
+examples/calculator.c.obj:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/demo_calculator.dir/build.make CMakeFiles/demo_calculator.dir/examples/calculator.c.obj
+.PHONY : examples/calculator.c.obj
+
+examples/calculator.i: examples/calculator.c.i
+.PHONY : examples/calculator.i
+
+# target to preprocess a source file
+examples/calculator.c.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/demo_calculator.dir/build.make CMakeFiles/demo_calculator.dir/examples/calculator.c.i
+.PHONY : examples/calculator.c.i
+
+examples/calculator.s: examples/calculator.c.s
+.PHONY : examples/calculator.s
+
+# target to generate assembly for a file
+examples/calculator.c.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/demo_calculator.dir/build.make CMakeFiles/demo_calculator.dir/examples/calculator.c.s
+.PHONY : examples/calculator.c.s
+
 examples/main.obj: examples/main.c.obj
 .PHONY : examples/main.obj
 
@@ -366,8 +403,12 @@ help:
 	@echo "... depend"
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
+	@echo "... demo_calculator"
 	@echo "... demo_main"
 	@echo "... sdl_desktop_lib"
+	@echo "... examples/calculator.obj"
+	@echo "... examples/calculator.i"
+	@echo "... examples/calculator.s"
 	@echo "... examples/main.obj"
 	@echo "... examples/main.i"
 	@echo "... examples/main.s"
