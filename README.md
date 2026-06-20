@@ -23,7 +23,6 @@ Features include:
 
 ## Desktop Example
 
-*(add screenshot here)*
 
 ![desktop](docs/images/desktop.png)
 
@@ -31,7 +30,6 @@ Features include:
 
 ## Calculator Example
 
-*(add screenshot here)*
 
 ![calculator](docs/images/calculator.png)
 
