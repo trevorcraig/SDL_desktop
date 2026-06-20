@@ -1,5 +1,0 @@
-D:/SDL_desktop/build/CMakeFiles/sdl_desktop_lib.dir
-D:/SDL_desktop/build/CMakeFiles/demo_main.dir
-D:/SDL_desktop/build/CMakeFiles/demo_calculator.dir
-D:/SDL_desktop/build/CMakeFiles/edit_cache.dir
-D:/SDL_desktop/build/CMakeFiles/rebuild_cache.dir
