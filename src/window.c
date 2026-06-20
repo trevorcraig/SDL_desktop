@@ -1,47 +1,67 @@
 #include "window.h"
 
+/**
+ * @brief Check if a point exists inside a rectangle.
+ *
+ * @param x Mouse X.
+ * @param y Mouse Y.
+ * @param rect Rectangle to test.
+ *
+ * @return true if point is inside.
+ */
 static bool PointInRect(
     float x,
     float y,
-    SDL_FRect* r
+    SDL_FRect* rect
 )
 {
     return (
-        x >= r->x &&
-        x <= r->x + r->w &&
-        y >= r->y &&
-        y <= r->y + r->h
+        x >= rect->x &&
+        x <= rect->x + rect->w &&
+        y >= rect->y &&
+        y <= rect->y + rect->h
     );
 }
 
+/**
+ * @brief Move all child widgets recursively.
+ *
+ * Used while dragging a window so children
+ * maintain their relative positions.
+ *
+ * @param panel Panel to update.
+ * @param dx Horizontal offset.
+ * @param dy Vertical offset.
+ */
 static void MoveChildren(
-    Panel* p,
+    Panel* panel,
     float dx,
     float dy
 )
 {
     for (
         int i = 0;
-        i < p->count;
+        i < panel->count;
         i++
     )
     {
         Widget* child =
-            p->children[i];
+            panel->children[i];
 
         child->rect.x += dx;
         child->rect.y += dy;
 
-        Panel* nested =
-            (Panel*)child;
+        //--------------------------------
+        // Recursive nested panel support
+        //--------------------------------
 
         if (
-            nested->base.Render ==
-            p->base.Render
+            child->Render ==
+            panel->base.Render
         )
         {
             MoveChildren(
-                nested,
+                (Panel*)child,
                 dx,
                 dy
             );
@@ -49,16 +69,28 @@ static void MoveChildren(
     }
 }
 
+/**
+ * @brief Render window and content.
+ *
+ * Draw order:
+ * - Window body
+ * - Title bar
+ * - Content
+ * - Overlays
+ *
+ * @param w Window widget.
+ * @param r SDL renderer.
+ */
 static void Render(
     Widget* w,
     SDL_Renderer* r
 )
 {
-    Window* win =
+    Window* window =
         (Window*)w;
 
     //--------------------------------
-    // Body
+    // Window body
     //--------------------------------
 
     SDL_SetRenderDrawColor(
@@ -75,15 +107,15 @@ static void Render(
     );
 
     //--------------------------------
-    // Title
+    // Title bar
     //--------------------------------
 
-    SDL_FRect title =
+    SDL_FRect title_bar =
     {
         w->rect.x,
         w->rect.y,
         w->rect.w,
-        win->title_height
+        window->title_height
     };
 
     SDL_SetRenderDrawColor(
@@ -96,7 +128,7 @@ static void Render(
 
     SDL_RenderFillRect(
         r,
-        &title
+        &title_bar
     );
 
     //--------------------------------
@@ -104,132 +136,184 @@ static void Render(
     //--------------------------------
 
     Widget_Render(
-        (Widget*)&win->content,
+        (Widget*)&window->content,
         r
     );
 
     //--------------------------------
-    // ADD THIS
+    // Overlay content
     //--------------------------------
 
     Widget_RenderOverlay(
-        (Widget*)&win->content,
+        (Widget*)&window->content,
         r
     );
 }
 
+/**
+ * @brief Handle window input.
+ *
+ * Supports:
+ * - Window dragging
+ * - Child event forwarding
+ *
+ * @param w Window widget.
+ * @param e SDL event.
+ */
 static void Handle(
     Widget* w,
     SDL_Event* e
 )
 {
-    Window* win =
+    Window* window =
         (Window*)w;
+
+    float mouse_x;
+    float mouse_y;
+
+    SDL_GetMouseState(
+        &mouse_x,
+        &mouse_y
+    );
+
+    //--------------------------------
+    // Begin drag
+    //--------------------------------
 
     if (
         e->type ==
         SDL_EVENT_MOUSE_BUTTON_DOWN
     )
     {
-        float mx;
-        float my;
-
-        SDL_GetMouseState(
-            &mx,
-            &my
-        );
-
-        SDL_FRect title =
+        SDL_FRect title_bar =
         {
             w->rect.x,
             w->rect.y,
             w->rect.w,
-            win->title_height
+            window->title_height
         };
 
         if (
             PointInRect(
-                mx,
-                my,
-                &title
+                mouse_x,
+                mouse_y,
+                &title_bar
             )
         )
         {
-            win->dragging =
+            window->dragging =
                 true;
 
-            win->drag_x =
-                mx -
+            window->drag_x =
+                mouse_x
+                -
                 w->rect.x;
 
-            win->drag_y =
-                my -
+            window->drag_y =
+                mouse_y
+                -
                 w->rect.y;
         }
     }
+
+    //--------------------------------
+    // Stop drag
+    //--------------------------------
 
     if (
         e->type ==
         SDL_EVENT_MOUSE_BUTTON_UP
     )
     {
-        win->dragging =
+        window->dragging =
             false;
     }
 
+    //--------------------------------
+    // Drag update
+    //--------------------------------
+
     if (
+        window->dragging &&
         e->type ==
         SDL_EVENT_MOUSE_MOTION
-        &&
-        win->dragging
     )
     {
-        float mx;
-        float my;
-
-        SDL_GetMouseState(
-            &mx,
-            &my
-        );
-
-        float oldX =
+        float old_x =
             w->rect.x;
 
-        float oldY =
+        float old_y =
             w->rect.y;
 
         w->rect.x =
-            mx -
-            win->drag_x;
+            mouse_x
+            -
+            window->drag_x;
 
         w->rect.y =
-            my -
-            win->drag_y;
+            mouse_y
+            -
+            window->drag_y;
 
-        float dx =
-            w->rect.x -
-            oldX;
+        float delta_x =
+            w->rect.x
+            -
+            old_x;
 
-        float dy =
-            w->rect.y -
-            oldY;
+        float delta_y =
+            w->rect.y
+            -
+            old_y;
 
-        win->content.base.rect.x += dx;
-        win->content.base.rect.y += dy;
+        window
+        ->
+        content
+        .
+        base
+        .
+        rect
+        .
+        x +=
+            delta_x;
+
+        window
+        ->
+        content
+        .
+        base
+        .
+        rect
+        .
+        y +=
+            delta_y;
 
         MoveChildren(
-            &win->content,
-            dx,
-            dy
+            &window->content,
+            delta_x,
+            delta_y
         );
     }
 
+    //--------------------------------
+    // Forward events
+    //--------------------------------
+
     Widget_Handle(
-        (Widget*)&win->content,
+        (Widget*)&window->content,
         e
     );
 }
 
+/**
+ * @brief Initialize a window widget.
+ *
+ * @param w Window.
+ * @param x Left position.
+ * @param y Top position.
+ * @param width Width.
+ * @param height Height.
+ * @param title Window title.
+ */
 void Window_Init(
     Window* w,
     float x,
@@ -256,6 +340,9 @@ void Window_Init(
     w->base.Handle =
         Handle;
 
+    w->base.has_overlay =
+        false;
+
     w->title =
         title;
 
@@ -264,9 +351,6 @@ void Window_Init(
 
     w->dragging =
         false;
-
-    w->base.has_overlay =
-    false;
 
     Panel_Init(
         &w->content,
@@ -277,6 +361,12 @@ void Window_Init(
     );
 }
 
+/**
+ * @brief Add widget to window content.
+ *
+ * @param w Window.
+ * @param child Widget to add.
+ */
 void Window_Add(
     Window* w,
     Widget* child

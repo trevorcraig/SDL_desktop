@@ -1,8 +1,19 @@
+/**
+ * @file menu_bar.c
+ * @brief Menu bar widget with dropdown support.
+ */
+
 #include "menu_bar.h"
 
-#include <stdio.h>
 #include <string.h>
 
+#define MENU_WIDTH      110.0f
+#define DROPDOWN_WIDTH  180.0f
+#define DROPDOWN_HEIGHT 40.0f
+
+/**
+ * @brief Check whether a point is inside a rectangle.
+ */
 static bool PointInRect(
     float x,
     float y,
@@ -17,14 +28,25 @@ static bool PointInRect(
     );
 }
 
+/**
+ * @brief Draw text inside a rectangle.
+ */
 static void DrawText(
-    SDL_Renderer* r,
+    SDL_Renderer* renderer,
     TTF_Font* font,
     const char* text,
     SDL_FRect rect
 )
 {
-    SDL_Surface* s =
+    if (
+        !font ||
+        !text
+    )
+    {
+        return;
+    }
+
+    SDL_Surface* surface =
         TTF_RenderText_Solid(
             font,
             text,
@@ -38,55 +60,150 @@ static void DrawText(
             }
         );
 
-    if (!s)
+    if (!surface)
     {
         return;
     }
 
-    SDL_Texture* t =
+    SDL_Texture* texture =
         SDL_CreateTextureFromSurface(
-            r,
-            s
+            renderer,
+            surface
         );
+
+    if (!texture)
+    {
+        SDL_DestroySurface(
+            surface
+        );
+
+        return;
+    }
 
     SDL_FRect dst =
     {
         rect.x + 10,
 
-        rect.y +
+        rect.y
+        +
         (
             rect.h -
-            s->h
-        ) / 2,
+            surface->h
+        )
+        / 2,
 
-        s->w,
-        s->h
+        surface->w,
+        surface->h
     };
 
     SDL_RenderTexture(
-        r,
-        t,
+        renderer,
+        texture,
         NULL,
         &dst
     );
 
     SDL_DestroyTexture(
-        t
+        texture
     );
 
     SDL_DestroySurface(
-        s
+        surface
     );
 }
 
+/**
+ * @brief Update all menu item rectangles.
+ */
+static void UpdateMenuRects(
+    MenuBar* mb
+)
+{
+    for (
+        int i = 0;
+        i < mb->count;
+        i++
+    )
+    {
+        mb->items[i].rect =
+        (
+            SDL_FRect
+        )
+        {
+            mb->base.rect.x
+            +
+            i * MENU_WIDTH,
+
+            mb->base.rect.y,
+
+            MENU_WIDTH,
+
+            mb->base.rect.h
+        };
+    }
+}
+
+/**
+ * @brief Close every open menu.
+ */
+static void CloseMenus(
+    MenuBar* mb
+)
+{
+    for (
+        int i = 0;
+        i < mb->count;
+        i++
+    )
+    {
+        mb->items[i].open =
+            false;
+    }
+}
+
+/**
+ * @brief Calculate dropdown row rectangle.
+ */
+static SDL_FRect GetDropdownRect(
+    MenuItem* item,
+    int index
+)
+{
+    return
+    (
+        SDL_FRect
+    )
+    {
+        item->rect.x,
+
+        item->rect.y
+        +
+        item->rect.h
+        +
+        index
+        *
+        DROPDOWN_HEIGHT,
+
+        DROPDOWN_WIDTH,
+
+        DROPDOWN_HEIGHT
+    };
+}
+
+/**
+ * @brief Render menu bar.
+ */
 static void Render(
     Widget* w,
     SDL_Renderer* r
 )
 {
-    
     MenuBar* mb =
         (MenuBar*)w;
+
+    UpdateMenuRects(
+        mb
+    );
 
     SDL_SetRenderDrawColor(
         r,
@@ -102,41 +219,13 @@ static void Render(
     );
 
     for (
-        int i=0;
-        i<mb->count;
+        int i = 0;
+        i < mb->count;
         i++
     )
     {
         MenuItem* item =
             &mb->items[i];
-
-        //--------------------------------
-        // ALWAYS update rect
-        //--------------------------------
-        // printf(
-        //     "item %d %.0f %.0f %.0f %.0f\n",
-        //     i,
-        //     item->rect.x,
-        //     item->rect.y,
-        //     item->rect.w,
-        //     item->rect.h
-        // );
-
-        item->rect =
-        (
-            SDL_FRect
-        )
-        {
-            w->rect.x
-            +
-            i*110,
-
-            w->rect.y,
-
-            110,
-
-            w->rect.h
-        };
 
         if (
             item->hover
@@ -165,6 +254,9 @@ static void Render(
     }
 }
 
+/**
+ * @brief Handle menu interaction.
+ */
 void MenuBar_Handle(
     Widget* w,
     SDL_Event* e
@@ -181,9 +273,8 @@ void MenuBar_Handle(
         &my
     );
 
-
     //--------------------------------
-    // Hover updates every frame
+    // Hover
     //--------------------------------
 
     if (
@@ -192,20 +283,16 @@ void MenuBar_Handle(
     )
     {
         for (
-            int i=0;
-            i<mb->count;
+            int i = 0;
+            i < mb->count;
             i++
         )
         {
-            mb
-            ->items[i]
-            .hover =
+            mb->items[i].hover =
                 PointInRect(
                     mx,
                     my,
-                    &mb
-                    ->items[i]
-                    .rect
+                    &mb->items[i].rect
                 );
         }
 
@@ -213,12 +300,11 @@ void MenuBar_Handle(
     }
 
     //--------------------------------
-    // Only click logic below
+    // Click only
     //--------------------------------
 
     if (
-        e->type
-        !=
+        e->type !=
         SDL_EVENT_MOUSE_BUTTON_UP
     )
     {
@@ -226,12 +312,12 @@ void MenuBar_Handle(
     }
 
     //--------------------------------
-    // First check menu buttons
+    // Menu buttons
     //--------------------------------
 
     for (
-        int i=0;
-        i<mb->count;
+        int i = 0;
+        i < mb->count;
         i++
     )
     {
@@ -246,17 +332,9 @@ void MenuBar_Handle(
             )
         )
         {
-            for (
-                int j=0;
-                j<mb->count;
-                j++
-            )
-            {
+            CloseMenus(
                 mb
-                ->items[j]
-                .open =
-                    false;
-            }
+            );
 
             item->open =
                 true;
@@ -273,12 +351,12 @@ void MenuBar_Handle(
     }
 
     //--------------------------------
-    // Then dropdowns
+    // Dropdown rows
     //--------------------------------
 
     for (
-        int i=0;
-        i<mb->count;
+        int i = 0;
+        i < mb->count;
         i++
     )
     {
@@ -293,24 +371,16 @@ void MenuBar_Handle(
         }
 
         for (
-            int d=0;
-            d<
-            item
-            ->dropdown_count;
+            int d = 0;
+            d < item->dropdown_count;
             d++
         )
         {
             SDL_FRect row =
-            {
-                item->rect.x,
-                item->rect.y
-                +
-                item->rect.h
-                +
-                d*40,
-                180,
-                40
-            };
+                GetDropdownRect(
+                    item,
+                    d
+                );
 
             if (
                 PointInRect(
@@ -340,23 +410,14 @@ void MenuBar_Handle(
         }
     }
 
-    //--------------------------------
-    // Click outside closes menus
-    //--------------------------------
-
-    for (
-        int i=0;
-        i<mb->count;
-        i++
-    )
-    {
+    CloseMenus(
         mb
-        ->items[i]
-        .open =
-            false;
-    }
+    );
 }
 
+/**
+ * @brief Render dropdown menus.
+ */
 static void RenderOverlay(
     Widget* w,
     SDL_Renderer* r
@@ -388,19 +449,10 @@ static void RenderOverlay(
         )
         {
             SDL_FRect row =
-            {
-                item->rect.x,
-
-                item->rect.y
-                +
-                item->rect.h
-                +
-                d * 40,
-
-                180,
-
-                40
-            };
+                GetDropdownRect(
+                    item,
+                    d
+                );
 
             SDL_SetRenderDrawColor(
                 r,
@@ -431,16 +483,16 @@ static void RenderOverlay(
             DrawText(
                 r,
                 mb->font,
-                item
-                ->
-                dropdown[d]
-                .text,
+                item->dropdown[d].text,
                 row
             );
         }
     }
 }
 
+/**
+ * @brief Initialize menu bar.
+ */
 void MenuBar_Init(
     MenuBar* mb,
     float x,
@@ -480,6 +532,9 @@ void MenuBar_Init(
         0;
 }
 
+/**
+ * @brief Add a top-level menu item.
+ */
 void MenuBar_Add(
     MenuBar* mb,
     const char* text,
@@ -487,12 +542,8 @@ void MenuBar_Add(
 )
 {
     MenuItem* item =
-        &mb
-        ->
-        items[
-            mb
-            ->
-            count++
+        &mb->items[
+            mb->count++
         ];
 
     item->text =
@@ -501,16 +552,19 @@ void MenuBar_Add(
     item->callback =
         cb;
 
-    item->open =
+    item->hover =
         false;
 
-    item->hover =
+    item->open =
         false;
 
     item->dropdown_count =
         0;
 }
 
+/**
+ * @brief Add dropdown item.
+ */
 void MenuBar_AddDropdown(
     MenuBar* mb,
     int menu,
@@ -519,20 +573,13 @@ void MenuBar_AddDropdown(
 )
 {
     MenuItem* item =
-        &mb
-        ->
-        items[
+        &mb->items[
             menu
         ];
 
-    item
-    ->
-    dropdown[
-        item
-        ->
-        dropdown_count++
-    ]
-    =
+    item->dropdown[
+        item->dropdown_count++
+    ] =
     (
         DropdownItem
     )

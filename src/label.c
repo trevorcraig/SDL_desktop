@@ -1,6 +1,21 @@
+/**
+ * @file label.c
+ * @brief Text rendering widget implementation.
+ */
+
 #include "label.h"
+
 #include <string.h>
 
+/**
+ * @brief Render the label text.
+ *
+ * Creates a temporary text surface and texture,
+ * then draws the text at the widget position.
+ *
+ * @param w Widget to render.
+ * @param r SDL renderer.
+ */
 static void Render(
     Widget* w,
     SDL_Renderer* r
@@ -9,7 +24,16 @@ static void Render(
     Label* label =
         (Label*)w;
 
-    SDL_Surface* s =
+    if (
+        !label ||
+        !label->font ||
+        !label->text
+    )
+    {
+        return;
+    }
+
+    SDL_Surface* surface =
         TTF_RenderText_Blended(
             label->font,
             label->text,
@@ -19,36 +43,63 @@ static void Render(
             label->color
         );
 
-    SDL_Texture* t =
+    if (!surface)
+    {
+        return;
+    }
+
+    SDL_Texture* texture =
         SDL_CreateTextureFromSurface(
             r,
-            s
+            surface
         );
+
+    if (!texture)
+    {
+        SDL_DestroySurface(
+            surface
+        );
+
+        return;
+    }
 
     SDL_FRect dst =
     {
         w->rect.x,
         w->rect.y,
-        s->w,
-        s->h
+
+        (float)surface->w,
+        (float)surface->h
     };
 
     SDL_RenderTexture(
         r,
-        t,
+        texture,
         NULL,
         &dst
     );
 
     SDL_DestroyTexture(
-        t
+        texture
     );
 
     SDL_DestroySurface(
-        s
+        surface
     );
 }
 
+/**
+ * @brief Initialize a label widget.
+ *
+ * Automatically sizes the widget
+ * based on the rendered text dimensions.
+ *
+ * @param label Label instance.
+ * @param x Left position.
+ * @param y Top position.
+ * @param text Label text.
+ * @param font Font used for rendering.
+ */
 void Label_Init(
     Label* label,
     float x,
@@ -57,16 +108,29 @@ void Label_Init(
     TTF_Font* font
 )
 {
-    int tw = 0;
-    int th = 0;
+    int textWidth =
+        0;
 
-    TTF_GetStringSize(
-        font,
-        text,
-        strlen(text),
-        &tw,
-        &th
-    );
+    int textHeight =
+        0;
+
+    if (
+        font &&
+        text
+    )
+    {
+        TTF_GetStringSize(
+            font,
+            text,
+            strlen(text),
+            &textWidth,
+            &textHeight
+        );
+    }
+
+    //--------------------------------
+    // Widget base
+    //--------------------------------
 
     label->base.rect =
     (
@@ -75,8 +139,8 @@ void Label_Init(
     {
         x,
         y,
-        (float)tw,
-        (float)th
+        (float)textWidth,
+        (float)textHeight
     };
 
     label->base.Render =
@@ -85,6 +149,10 @@ void Label_Init(
     label->base.Handle =
         NULL;
 
+    //--------------------------------
+    // Content
+    //--------------------------------
+
     label->text =
         text;
 
@@ -92,13 +160,20 @@ void Label_Init(
         font;
 
     label->color =
-        (SDL_Color)
-        {
-            255,
-            255,
-            255,
-            255
-        };
+    (
+        SDL_Color
+    )
+    {
+        255,
+        255,
+        255,
+        255
+    };
+
+    //--------------------------------
+    // Layout defaults
+    //--------------------------------
+
     label->base.fill_width =
         false;
 
@@ -113,6 +188,7 @@ void Label_Init(
 
     label->base.v_align =
         ALIGN_TOP;
-    label->base.has_overlay  =
-        false; 
+
+    label->base.has_overlay =
+        false;
 }

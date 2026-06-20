@@ -1,13 +1,26 @@
 #include "panel.h"
-#include "menu_bar.h"
 
+/**
+ * @brief Render a panel and all child widgets.
+ *
+ * Draws the panel background, renders normal child widgets
+ * inside the clipping region, then renders overlays without
+ * clipping (dropdowns, menus, etc.).
+ *
+ * @param w Panel widget.
+ * @param r SDL renderer.
+ */
 static void Render(
     Widget* w,
     SDL_Renderer* r
 )
 {
-    Panel* p =
+    Panel* panel =
         (Panel*)w;
+
+    //--------------------------------
+    // Panel background
+    //--------------------------------
 
     SDL_SetRenderDrawColor(
         r,
@@ -22,6 +35,10 @@ static void Render(
         &w->rect
     );
 
+    //--------------------------------
+    // Clip normal children
+    //--------------------------------
+
     SDL_Rect clip =
     {
         (int)w->rect.x,
@@ -35,27 +52,20 @@ static void Render(
         &clip
     );
 
-    //--------------------------------
-    // Render all children normally
-    //--------------------------------
-    //--------------------------------
-    // Normal widgets
-    //--------------------------------
-
     for (
-        int i=0;
-        i<p->count;
+        int i = 0;
+        i < panel->count;
         i++
     )
     {
         Widget_Render(
-            p->children[i],
+            panel->children[i],
             r
         );
     }
 
     //--------------------------------
-    // Overlay widgets
+    // Render overlays unclipped
     //--------------------------------
 
     SDL_SetRenderClipRect(
@@ -64,110 +74,109 @@ static void Render(
     );
 
     for (
-        int i=0;
-        i<p->count;
+        int i = 0;
+        i < panel->count;
         i++
     )
     {
         Widget_RenderOverlay(
-            p->children[i],
+            panel->children[i],
             r
         );
     }
-    // for (
-    //     int i = 0;
-    //     i < p->count;
-    //     i++
-    // )
-    // {
-    //     if (
-    //         p->children[i]
-    //     )
-    //     {
-    //         Widget_Render(
-    //             p->children[i],
-    //             r
-    //         );
-    //     }
-    // }
-
-    SDL_SetRenderClipRect(
-        r,
-        NULL
-    );
 }
 
+/**
+ * @brief Handle panel events.
+ *
+ * Supports scrolling and forwards events
+ * to child widgets.
+ *
+ * @param w Panel widget.
+ * @param e SDL event.
+ */
 static void Handle(
     Widget* w,
     SDL_Event* e
 )
 {
-    Panel* p =
+    Panel* panel =
         (Panel*)w;
 
     //--------------------------------
-    // Mouse wheel
+    // Scroll support
     //--------------------------------
 
     if (
-        p->scroll_enabled &&
+        panel->scroll_enabled &&
         e->type ==
         SDL_EVENT_MOUSE_WHEEL
     )
     {
-        p->scroll_y -=
-            e->wheel.y
-            * 40;
+        panel->scroll_y -=
+            e->wheel.y * 40;
 
         if (
-            p->scroll_y < 0
+            panel->scroll_y < 0
         )
         {
-            p->scroll_y =
+            panel->scroll_y =
                 0;
         }
 
-        float maxScroll =
-            p->content_height
+        float max_scroll =
+            panel->content_height
             -
-            p->base.rect.h;
+            panel->base.rect.h;
 
         if (
-            maxScroll < 0
+            max_scroll < 0
         )
         {
-            maxScroll =
+            max_scroll =
                 0;
         }
 
         if (
-            p->scroll_y >
-            maxScroll
+            panel->scroll_y >
+            max_scroll
         )
         {
-            p->scroll_y =
-                maxScroll;
+            panel->scroll_y =
+                max_scroll;
         }
 
         Panel_PerformLayout(
-            p
+            panel
         );
     }
 
+    //--------------------------------
+    // Forward event
+    //--------------------------------
+
     for (
         int i = 0;
-        i < p->count;
+        i < panel->count;
         i++
     )
     {
         Widget_Handle(
-            p->children[i],
+            panel->children[i],
             e
         );
     }
 }
 
-
+/**
+ * @brief Initialize panel.
+ *
+ * @param p Panel.
+ * @param x Left position.
+ * @param y Top position.
+ * @param w Width.
+ * @param h Height.
+ */
 void Panel_Init(
     Panel* p,
     float x,
@@ -205,6 +214,19 @@ void Panel_Init(
     p->layout =
         PANEL_VERTICAL;
 
+    p->scroll_y =
+        0;
+
+    p->scroll_enabled =
+        false;
+
+    p->content_height =
+        0;
+
+    //--------------------------------
+    // Widget defaults
+    //--------------------------------
+
     p->base.fill_width =
         false;
 
@@ -213,21 +235,22 @@ void Panel_Init(
 
     p->base.flex =
         0;
+
     p->base.h_align =
         ALIGN_LEFT;
 
     p->base.v_align =
         ALIGN_TOP;
-    p->scroll_y = 0;
 
-    p->scroll_enabled = false;
-
-    p->content_height = 0;
     p->base.has_overlay =
-    false;
-        
+        false;
 }
 
+/**
+ * @brief Enable vertical scrolling.
+ *
+ * @param p Panel.
+ */
 void Panel_EnableScroll(
     Panel* p
 )
@@ -236,6 +259,12 @@ void Panel_EnableScroll(
         true;
 }
 
+/**
+ * @brief Set panel layout mode.
+ *
+ * @param p Panel.
+ * @param layout Horizontal or vertical.
+ */
 void Panel_SetLayout(
     Panel* p,
     PanelLayout layout
@@ -249,15 +278,40 @@ void Panel_SetLayout(
     );
 }
 
+/**
+ * @brief Recalculate child positions.
+ *
+ * Applies:
+ * - alignment
+ * - spacing
+ * - flex sizing
+ * - scrolling
+ *
+ * @param p Panel.
+ */
 void Panel_PerformLayout(
     Panel* p
 )
 {
-    float cursorX =
+    float cursor_x =
         p->padding;
 
-    float cursorY =
+    float cursor_y =
         p->padding;
+
+    float available_w =
+        p->base.rect.w
+        -
+        (
+            p->padding * 2
+        );
+
+    float available_h =
+        p->base.rect.h
+        -
+        (
+            p->padding * 2
+        );
 
     for (
         int i = 0;
@@ -268,214 +322,77 @@ void Panel_PerformLayout(
         Widget* child =
             p->children[i];
 
-        float availableW =
-            p->base.rect.w
-            -
-            (
-                p->padding
-                * 2
-            );
-
-        float availableH =
-            p->base.rect.h
-            -
-            (
-                p->padding
-                * 2
-            );
-
-        float childX =
-            cursorX;
-
-        float childY =
-            cursorY;
-
-        switch (
-            child->h_align
-        )
-        {
-        case ALIGN_LEFT:
-            break;
-
-        case ALIGN_CENTER:
-
-            childX +=
-                (
-                    availableW
-                    -
-                    child->rect.w
-                )
-                / 2;
-
-            break;
-
-        case ALIGN_RIGHT:
-
-            childX +=
-                availableW
-                -
-                child->rect.w;
-
-            break;
-
-        case ALIGN_FILL:
-
-            child->rect.w =
-                availableW;
-
-            break;
-        }
-
-        switch (
-            child->v_align
-        )
-        {
-        case ALIGN_TOP:
-            break;
-
-        case ALIGN_MIDDLE:
-
-            childY +=
-                (
-                    availableH
-                    -
-                    child->rect.h
-                )
-                / 2;
-
-            break;
-
-        case ALIGN_BOTTOM:
-
-            childY +=
-                availableH
-                -
-                child->rect.h;
-
-            break;
-
-        case ALIGN_VFILL:
-
-            child->rect.h =
-                availableH;
-
-            break;
-        }
-
-        child->rect.x =
-            p->base.rect.x
-            +
-            childX;
-
-        child->rect.y =
-            p->base.rect.y
-            +
-            childY
-            -
-            p->scroll_y;
+        //--------------------------------
+        // Fill sizing
+        //--------------------------------
 
         if (
             child->fill_width
         )
         {
             child->rect.w =
-                p->base.rect.w
-                -
-                (
-                    p->padding
-                    * 2
-                );
+                available_w;
         }
+
+        if (
+            child->flex > 0.0f
+        )
+        {
+            child->rect.h =
+                available_h
+                *
+                child->flex;
+        }
+
+        if (
+            child->rect.h < 1
+        )
+        {
+            child->rect.h =
+                36;
+        }
+
+        //--------------------------------
+        // Position
+        //--------------------------------
+
+        child->rect.x =
+            p->base.rect.x
+            +
+            cursor_x;
+
+        child->rect.y =
+            p->base.rect.y
+            +
+            cursor_y
+            -
+            p->scroll_y;
+
+        //--------------------------------
+        // Advance cursor
+        //--------------------------------
+
         if (
             p->layout ==
             PANEL_VERTICAL
         )
         {
-            //--------------------------------
-            // Only flex if explicitly set
-            //--------------------------------
-
-            if (
-                child->flex > 0.0f
-            )
-            {
-                child->rect.h =
-                    (
-                        p->base.rect.h
-                        -
-                        (
-                            p->padding
-                            * 2
-                        )
-                    )
-                    *
-                    child->flex;
-            }
-
-            //--------------------------------
-            // Preserve existing height
-            //--------------------------------
-
-            if (
-                child->rect.h < 1
-            )
-            {
-                child->rect.h =
-                    36;
-            }
-
-            cursorY +=
+            cursor_y +=
                 child->rect.h
                 +
                 p->spacing;
         }
-        // if (
-        //     p->layout ==
-        //     PANEL_VERTICAL
-        // )
-        // {
-        //     if (
-        //         child->flex > 0
-        //     )
-        //     {
-        //         child->rect.h =
-        //             (
-        //                 p->base.rect.h
-        //                 -
-        //                 (
-        //                     p->padding
-        //                     * 2
-        //                 )
-        //             )
-        //             *
-        //             child->flex;
-        //     }
-
-        //     cursorY +=
-        //         child->rect.h
-        //         +
-        //         p->spacing;
-        // }
         else
         {
-            cursorX +=
-                child->rect.w +
+            cursor_x +=
+                child->rect.w
+                +
                 p->spacing;
         }
 
-    //     Panel* nested =
-    //         (Panel*)child;
-
-    //     if (
-    //         nested->base.Render ==
-    //         Render
-    //     )
-    //     {
-    //         Panel_PerformLayout(
-    //             nested
-    //         );
-    //     }
-    // }
+        //--------------------------------
+        // Nested panel layout
+        //--------------------------------
 
         if (
             child->Render ==
@@ -486,30 +403,41 @@ void Panel_PerformLayout(
                 (Panel*)child
             );
         }
-    }    
+    }
+
     p->content_height =
-    cursorY
-    +
-    p->padding;
+        cursor_y
+        +
+        p->padding;
 }
 
+/**
+ * @brief Add widget to panel.
+ *
+ * Automatically refreshes layout.
+ *
+ * @param p Panel.
+ * @param w Child widget.
+ */
 void Panel_Add(
     Panel* p,
     Widget* w
 )
 {
     if (
-        p->count <
+        p->count >=
         PANEL_MAX
     )
     {
-        p->children[
-            p->count++
-        ] =
-            w;
-
-        Panel_PerformLayout(
-            p
-        );
+        return;
     }
+
+    p->children[
+        p->count++
+    ] =
+        w;
+
+    Panel_PerformLayout(
+        p
+    );
 }

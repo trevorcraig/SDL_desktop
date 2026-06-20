@@ -1,21 +1,84 @@
+/**
+ * @file calculator.c
+ * @brief Example calculator application using the SDL desktop toolkit.
+ *
+ * Demonstrates:
+ * - Nested panels
+ * - Horizontal + vertical layouts
+ * - Button callbacks
+ * - Dynamic label updates
+ */
+
 #include <stdio.h>
 #include <string.h>
 
 #include <SDL3/SDL.h>
 #include <SDL3_ttf/SDL_ttf.h>
 
-#include "../include/panel.h"
-#include "../include/button.h"
-#include "../include/label.h"
+#include "panel.h"
+#include "button.h"
+#include "label.h"
 #include "menu_bar.h"
 
+/*----------------------------------------------------------
+Constants
+----------------------------------------------------------*/
+
+#define WINDOW_WIDTH   450
+#define WINDOW_HEIGHT  600
+
+#define BUTTON_WIDTH   90
+#define BUTTON_HEIGHT  70
+
+#define ROW_COUNT      4
+#define COL_COUNT      4
+
+/*----------------------------------------------------------
+Calculator State
+----------------------------------------------------------*/
+
+/** Output display widget */
 static Label display;
 
+/** Current calculator text */
 static char calcText[64] =
     "0";
 
+/*----------------------------------------------------------
+Display Helpers
+----------------------------------------------------------*/
+
+/**
+ * @brief Updates the calculator display.
+ *
+ * @param text New display text.
+ */
+static void SetDisplay(
+    const char* text
+)
+{
+    strncpy(
+        calcText,
+        text,
+        sizeof(calcText)
+    );
+
+    calcText[
+        sizeof(calcText)-1
+    ] =
+        '\0';
+
+    display.text =
+        calcText;
+}
+
+/**
+ * @brief Appends text to the display.
+ *
+ * @param text Text to append.
+ */
 static void Append(
-    const char* t
+    const char* text
 )
 {
     if (
@@ -29,14 +92,33 @@ static void Append(
             '\0';
     }
 
-    strcat(
+    strncat(
         calcText,
-        t
+        text,
+        sizeof(calcText)
+        -
+        strlen(calcText)
+        -
+        1
     );
 
     display.text =
         calcText;
 }
+
+/**
+ * @brief Clears calculator input.
+ */
+static void Clear()
+{
+    SetDisplay(
+        "0"
+    );
+}
+
+/*----------------------------------------------------------
+Button Callbacks
+----------------------------------------------------------*/
 
 void Num0(){Append("0");}
 void Num1(){Append("1");}
@@ -54,23 +136,25 @@ void Sub(){Append("-");}
 void Mul(){Append("*");}
 void Div(){Append("/");}
 
-void Clear()
-{
-    strcpy(
-        calcText,
-        "0"
-    );
+/*----------------------------------------------------------
+Expression Evaluation
+----------------------------------------------------------*/
 
-    display.text =
-        calcText;
-}
-
-void Equal()
+/**
+ * @brief Evaluates simple expressions:
+ *
+ * Supported:
+ *  a+b
+ *  a-b
+ *  a*b
+ *  a/b
+ */
+static void Equal()
 {
-    float a =
+    float left =
         0;
 
-    float b =
+    float right =
         0;
 
     char op =
@@ -80,19 +164,17 @@ void Equal()
         sscanf(
             calcText,
             "%f%c%f",
-            &a,
+            &left,
             &op,
-            &b
-        ) != 3
+            &right
+        )
+        !=
+        3
     )
     {
-        strcpy(
-            calcText,
+        SetDisplay(
             "ERROR"
         );
-
-        display.text =
-            calcText;
 
         return;
     }
@@ -106,54 +188,48 @@ void Equal()
     {
         case '+':
             result =
-                a + b;
+                left +
+                right;
             break;
 
         case '-':
             result =
-                a - b;
+                left -
+                right;
             break;
 
         case '*':
             result =
-                a * b;
+                left *
+                right;
             break;
 
         case '/':
-        {
+
             if (
-                b == 0
+                right == 0
             )
             {
-                strcpy(
-                    calcText,
+                SetDisplay(
                     "DIV0"
                 );
-
-                display.text =
-                    calcText;
 
                 return;
             }
 
             result =
-                a / b;
+                left /
+                right;
 
             break;
-        }
 
         default:
-        {
-            strcpy(
-                calcText,
+
+            SetDisplay(
                 "ERROR"
             );
 
-            display.text =
-                calcText;
-
             return;
-        }
     }
 
     SDL_snprintf(
@@ -167,34 +243,46 @@ void Equal()
         calcText;
 }
 
+/*----------------------------------------------------------
+Button Creation
+----------------------------------------------------------*/
+
+/**
+ * @brief Initializes a calculator button.
+ *
+ * @param button Button to initialize.
+ * @param text Button label.
+ * @param font UI font.
+ * @param callback Click callback.
+ */
 static void SetupButton(
-    Button* b,
+    Button* button,
     const char* text,
     TTF_Font* font,
-    MenuCallback cb
+    MenuCallback callback
 )
 {
     Button_Init(
-        b,
+        button,
         0,
         0,
-        90,
-        70,
+        BUTTON_WIDTH,
+        BUTTON_HEIGHT,
         text,
         font,
-        cb
+        callback
     );
 
-    //--------------------------------
-    // IMPORTANT
-    //--------------------------------
-
-    ((Widget*)b)->fill_width =
-        false;
-
-    ((Widget*)b)->flex =
-        0;
+    Widget_SetAlign(
+        (Widget*)button,
+        ALIGN_LEFT,
+        ALIGN_TOP
+    );
 }
+
+/*----------------------------------------------------------
+Main
+----------------------------------------------------------*/
 
 int main()
 {
@@ -207,8 +295,8 @@ int main()
     SDL_Window* window =
         SDL_CreateWindow(
             "Calculator",
-            450,
-            600,
+            WINDOW_WIDTH,
+            WINDOW_HEIGHT,
             0
         );
 
@@ -218,6 +306,8 @@ int main()
             NULL
         );
 
+    //--------------------------------
+    // Load font
     //--------------------------------
 
     char fontPath[512];
@@ -236,7 +326,7 @@ int main()
         );
 
     //--------------------------------
-    // Root
+    // Root layout
     //--------------------------------
 
     Panel root;
@@ -245,8 +335,8 @@ int main()
         &root,
         0,
         0,
-        450,
-        600
+        WINDOW_WIDTH,
+        WINDOW_HEIGHT
     );
 
     Panel_SetLayout(
@@ -266,23 +356,22 @@ int main()
         font
     );
 
-    ((Widget*)&display)->fill_width =
-        false;
-
     Panel_Add(
         &root,
         (Widget*)&display
     );
 
     //--------------------------------
-    // Rows
+    // Create rows
     //--------------------------------
 
-    Panel rows[4];
+    Panel rows[
+        ROW_COUNT
+    ];
 
     for (
         int i=0;
-        i<4;
+        i<ROW_COUNT;
         i++
     )
     {
@@ -299,14 +388,11 @@ int main()
             PANEL_HORIZONTAL
         );
 
-        rows[i].spacing =
-            10;
-
         rows[i].padding =
             0;
 
-        ((Widget*)&rows[i])->fill_width =
-            false;
+        rows[i].spacing =
+            10;
 
         Panel_Add(
             &root,
@@ -315,56 +401,63 @@ int main()
     }
 
     //--------------------------------
-    // Buttons
+    // Create buttons
     //--------------------------------
 
-    Button b[16];
+    Button buttons[16];
 
-    SetupButton(&b[0],"7",font,Num7);
-    SetupButton(&b[1],"8",font,Num8);
-    SetupButton(&b[2],"9",font,Num9);
-    SetupButton(&b[3],"/",font,Div);
+    SetupButton(&buttons[0],"7",font,Num7);
+    SetupButton(&buttons[1],"8",font,Num8);
+    SetupButton(&buttons[2],"9",font,Num9);
+    SetupButton(&buttons[3],"/",font,Div);
 
-    SetupButton(&b[4],"4",font,Num4);
-    SetupButton(&b[5],"5",font,Num5);
-    SetupButton(&b[6],"6",font,Num6);
-    SetupButton(&b[7],"*",font,Mul);
+    SetupButton(&buttons[4],"4",font,Num4);
+    SetupButton(&buttons[5],"5",font,Num5);
+    SetupButton(&buttons[6],"6",font,Num6);
+    SetupButton(&buttons[7],"*",font,Mul);
 
-    SetupButton(&b[8],"1",font,Num1);
-    SetupButton(&b[9],"2",font,Num2);
-    SetupButton(&b[10],"3",font,Num3);
-    SetupButton(&b[11],"-",font,Sub);
+    SetupButton(&buttons[8],"1",font,Num1);
+    SetupButton(&buttons[9],"2",font,Num2);
+    SetupButton(&buttons[10],"3",font,Num3);
+    SetupButton(&buttons[11],"-",font,Sub);
 
-    SetupButton(&b[12],"C",font,Clear);
-    SetupButton(&b[13],"0",font,Num0);
-    SetupButton(&b[14],"=",font,Equal);
-    SetupButton(&b[15],"+",font,Add);
+    SetupButton(&buttons[12],"C",font,Clear);
+    SetupButton(&buttons[13],"0",font,Num0);
+    SetupButton(&buttons[14],"=",font,Equal);
+    SetupButton(&buttons[15],"+",font,Add);
 
     //--------------------------------
-    // Add to rows
+    // Place buttons
     //--------------------------------
 
     for (
-        int i=0;
-        i<4;
-        i++
+        int row=0;
+        row<ROW_COUNT;
+        row++
     )
     {
         for (
-            int j=0;
-            j<4;
-            j++
+            int col=0;
+            col<COL_COUNT;
+            col++
         )
         {
             Panel_Add(
-                &rows[i],
-                (Widget*)&b[
-                    i*4+j
+                &rows[row],
+                (Widget*)
+                &buttons[
+                    row
+                    *
+                    COL_COUNT
+                    +
+                    col
                 ]
             );
         }
     }
 
+    //--------------------------------
+    // Main loop
     //--------------------------------
 
     bool running =
@@ -406,8 +499,7 @@ int main()
         );
 
         SDL_RenderClear(
-            renderer
-        );
+            renderer);
 
         Widget_Render(
             (Widget*)&root,
@@ -418,6 +510,10 @@ int main()
             renderer
         );
     }
+
+    //--------------------------------
+    // Cleanup
+    //--------------------------------
 
     TTF_CloseFont(
         font

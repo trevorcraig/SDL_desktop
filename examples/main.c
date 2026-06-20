@@ -4,46 +4,39 @@
 #include <SDL3/SDL.h>
 #include <SDL3_ttf/SDL_ttf.h>
 
-#include "../include/widget.h"
-#include "../include/window.h"
-#include "../include/label.h"
-#include "../include/button.h"
-#include "../include/textbox.h"
-#include "../include/menu_bar.h"
+#include "widget.h"
+#include "window.h"
+#include "button.h"
+#include "label.h"
+#include "textbox.h"
+#include "menu_bar.h"
+
 #include "file_dialog.h"
 
-void OnButtonPress()
+#define WINDOW_WIDTH   1200
+#define WINDOW_HEIGHT  800
+#define FONT_SIZE      30
+
+/**
+ * @brief Generic test button callback.
+ */
+static void OnButtonPress()
 {
     printf(
         "BUTTON CLICKED\n"
     );
 }
 
-void FileClick()
+/**
+ * @brief Menu → File → Open.
+ */
+static void OpenClick()
 {
-    printf(
-        "File\n"
-    );
-}
-
-void EditClick()
-{
-    printf(
-        "Edit\n"
-    );
-}
-
-void OpenClick()
-{
-    printf(
-        "Save\n"
-    );
     char* file =
         FileDialog_Open();
 
     if (
-        file
-        &&
+        file &&
         file[0]
     )
     {
@@ -60,15 +53,17 @@ void OpenClick()
     }
 }
 
-void SaveClick()
+/**
+ * @brief Menu → File → Save.
+ */
+static void SaveClick()
 {
-    // printf(
-    //     "Save\n"
-    // );
     char* file =
         FileDialog_Save();
 
-    if (file)
+    if (
+        file
+    )
     {
         printf(
             "SAVE:\n%s\n",
@@ -77,136 +72,64 @@ void SaveClick()
     }
 }
 
-void ExitClick()
+/**
+ * @brief Menu → File → Exit.
+ */
+static void ExitClick()
 {
     printf(
         "EXIT\n"
     );
 }
 
-int main(
-    int argc,
-    char* argv[]
-)
+/**
+ * @brief Load application font.
+ *
+ * @return Loaded font or NULL.
+ */
+static TTF_Font* LoadFont()
 {
-    //--------------------------------
-    // Init SDL
-    //--------------------------------
-
-    if (
-        !SDL_Init(
-            SDL_INIT_VIDEO
-        )
-    )
-    {
-        printf(
-            "SDL Error: %s\n",
-            SDL_GetError()
-        );
-
-        return 1;
-    }
-
-    if (
-        !TTF_Init()
-    )
-    {
-        printf(
-            "TTF Error: %s\n",
-            SDL_GetError()
-        );
-
-        return 1;
-    }
-
-    //--------------------------------
-    // Window
-    //--------------------------------
-
-    SDL_Window* window =
-        SDL_CreateWindow(
-            "SDL Desktop",
-            1200,
-            800,
-            0
-        );
-
-    if (!window)
-    {
-        printf(
-        "Window Error: %s\n",
-        SDL_GetError()
-        );
-
-        return 1;
-    }
-
-    SDL_Renderer* renderer =
-        SDL_CreateRenderer(
-            window,
-            NULL
-        );
-
-    if (!renderer)
-    {
-        printf(
-        "Renderer Error: %s\n",
-        SDL_GetError()
-        );
-
-        return 1;
-    }
-
-    SDL_StartTextInput(
-        window
-    );
-
-    //--------------------------------
-    // Load Font
-    //--------------------------------
-
-    char fontPath[512];
-
-    const char* base =
-        SDL_GetBasePath();
+    char path[512];
 
     SDL_snprintf(
-        fontPath,
-        sizeof(fontPath),
+        path,
+        sizeof(path),
         "%sPTC55F.ttf",
-        base
+        SDL_GetBasePath()
     );
-
 
     printf(
         "Loading font:\n%s\n",
-        fontPath
+        path
     );
 
-    TTF_Font* font =
+    return
         TTF_OpenFont(
-            fontPath,
-            30
+            path,
+            FONT_SIZE
         );
+}
 
-    if (!font)
-    {
-        printf(
-            "Font Error: %s\n",
-            SDL_GetError()
-        );
-
-        return 1;
-    }
-
+/**
+ * @brief Build UI hierarchy.
+ *
+ * Window
+ * ├── MenuBar
+ * ├── Label
+ * ├── Button
+ * └── TextBox
+ */
+static void BuildUI(
+    Window* desktop,
+    TTF_Font* font
+)
+{
     //--------------------------------
-    // Desktop Window
+    // Desktop
     //--------------------------------
-
-    Window desktop;
 
     Window_Init(
-        &desktop,
+        desktop,
         100,
         100,
         800,
@@ -214,7 +137,11 @@ int main(
         "Settings"
     );
 
-    MenuBar menu;
+    //--------------------------------
+    // Menu
+    //--------------------------------
+
+    static MenuBar menu;
 
     MenuBar_Init(
         &menu,
@@ -229,13 +156,12 @@ int main(
         &menu,
         "File",
         NULL
-        // FileClick
     );
 
     MenuBar_Add(
         &menu,
         "Edit",
-        EditClick
+        NULL
     );
 
     MenuBar_Add(
@@ -272,7 +198,7 @@ int main(
     );
 
     Window_Add(
-        &desktop,
+        desktop,
         (Widget*)&menu
     );
 
@@ -280,7 +206,7 @@ int main(
     // Title
     //--------------------------------
 
-    Label title;
+    static Label title;
 
     Label_Init(
         &title,
@@ -291,7 +217,7 @@ int main(
     );
 
     Window_Add(
-        &desktop,
+        desktop,
         (Widget*)&title
     );
 
@@ -299,7 +225,7 @@ int main(
     // Button
     //--------------------------------
 
-    Button button;
+    static Button button;
 
     Button_Init(
         &button,
@@ -309,7 +235,6 @@ int main(
         80,
         "PRESS",
         font,
-        // OpenClick
         OnButtonPress
     );
 
@@ -320,7 +245,7 @@ int main(
     );
 
     Window_Add(
-        &desktop,
+        desktop,
         (Widget*)&button
     );
 
@@ -328,7 +253,7 @@ int main(
     // Textbox
     //--------------------------------
 
-    TextBox textbox;
+    static TextBox textbox;
 
     TextBox_Init(
         &textbox,
@@ -346,12 +271,86 @@ int main(
     );
 
     Window_Add(
-        &desktop,
+        desktop,
         (Widget*)&textbox
+    );
+}
+
+/**
+ * @brief Application entry point.
+ */
+int main(
+    int argc,
+    char* argv[]
+)
+{
+    //--------------------------------
+    // Initialize systems
+    //--------------------------------
+
+    if (
+        !SDL_Init(
+            SDL_INIT_VIDEO
+        )
+    )
+    {
+        return 1;
+    }
+
+    if (
+        !TTF_Init()
+    )
+    {
+        return 1;
+    }
+
+    //--------------------------------
+    // Create SDL objects
+    //--------------------------------
+
+    SDL_Window* window =
+        SDL_CreateWindow(
+            "SDL Desktop",
+            WINDOW_WIDTH,
+            WINDOW_HEIGHT,
+            0
+        );
+
+    SDL_Renderer* renderer =
+        SDL_CreateRenderer(
+            window,
+            NULL
+        );
+
+    SDL_StartTextInput(
+        window
     );
 
     //--------------------------------
-    // Main Loop
+    // Assets
+    //--------------------------------
+
+    TTF_Font* font =
+        LoadFont();
+
+    if (!font)
+    {
+        return 1;
+    }
+
+    //--------------------------------
+    // UI
+    //--------------------------------
+
+    Window desktop;
+
+    BuildUI(
+        &desktop,
+        font
+    );
+
+    //--------------------------------
+    // Main loop
     //--------------------------------
 
     bool running =
@@ -384,10 +383,6 @@ int main(
             );
         }
 
-        //--------------------------------
-        // Draw
-        //--------------------------------
-
         SDL_SetRenderDrawColor(
             renderer,
             20,
@@ -397,8 +392,7 @@ int main(
         );
 
         SDL_RenderClear(
-            renderer
-        );
+            renderer);
 
         Widget_Render(
             (Widget*)&desktop,
