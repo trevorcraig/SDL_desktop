@@ -51,3 +51,4 @@ endfunction()
 # 5. Build your examples
 add_desktop_example(demo_main examples/main.c)
 add_desktop_example(demo_calculator examples/calculator.c)
+add_desktop_example(demo_file_browser examples/file_browser.c)
