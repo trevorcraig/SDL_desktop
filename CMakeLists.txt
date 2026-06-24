@@ -24,7 +24,7 @@ link_directories("${SDL3_DIR}/lib" "${SDL3_TTF_DIR}/lib" "${SDL3_IMAGE_DIR}/lib"
 
 # 3. Reference the new 'src' path
 add_library(sdl_desktop_lib STATIC src/button.c src/label.c src/panel.c src/widget.c src/textbox.c src/window.c src/menu_bar.c src/file_dialog.c)
-target_link_libraries(sdl_desktop_lib SDL3 SDL3_ttf SDL3_image comdlg32 m)
+target_link_libraries(sdl_desktop_lib SDL3 SDL3_ttf SDL3_image comdlg32 m) 
 
 # --- THE EXAMPLES PART ---
 
@@ -48,7 +48,45 @@ function(add_desktop_example name source)
         $<TARGET_FILE_DIR:${name}>)
 endfunction()
 
+function(add_sqlite_example name source)
+
+    add_executable(
+        ${name}
+
+        ${source}
+
+        third_party/sqlite/sqlite3.c
+    )
+
+    target_include_directories(
+        ${name}
+        PRIVATE
+        third_party/sqlite
+    )
+
+    target_link_libraries(
+        ${name}
+        sdl_desktop_lib
+    )
+
+endfunction()
+
 # 5. Build your examples
 add_desktop_example(demo_main examples/main.c)
 add_desktop_example(demo_calculator examples/calculator.c)
 add_desktop_example(demo_file_browser examples/file_browser.c)
+
+option(
+    BUILD_SQLITE_EXAMPLES
+    "Build SQLite examples"
+    ON
+)
+
+if(BUILD_SQLITE_EXAMPLES)
+
+add_sqlite_example(
+    demo_contacts
+    examples/contacts.c
+)
+
+endif()

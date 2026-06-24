@@ -51,6 +51,12 @@ Module.symvers
 Mkfile.old
 dkms.conf
 
+
+# SDL DLL copies
+SDL3.dll
+SDL3_ttf.dll
+SDL3_image.dll
+
 # debug information files
 *.dwo
 build/

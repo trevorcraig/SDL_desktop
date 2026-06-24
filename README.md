@@ -453,6 +453,29 @@ Source files include Doxygen comments.
 
 ---
 
+# Optional SQLite Support
+
+The toolkit itself does **not require SQLite**.
+
+SQLite is only used by selected examples (such as the Contacts application).
+
+This keeps the core library lightweight and avoids unnecessary dependencies.
+
+## Project Structure
+
+```text
+src/
+include/
+examples/
+assets/
+
+third_party/
+└── sqlite/
+    ├── sqlite3.c
+    └── sqlite3.h
+
+---
+
 # Roadmap
 
 Future ideas:
