@@ -11,6 +11,16 @@ endif()
 if(NOT SDL3_IMAGE_DIR)
     set(SDL3_IMAGE_DIR $ENV{SDL3_IMAGE_DIR} CACHE PATH "Path to SDL3_image root directory")
 endif()
+if(NOT FFMPEG_DIR)
+    set(
+        FFMPEG_DIR
+        $ENV{FFMPEG_DIR}
+        CACHE PATH
+        "Path to ffmpeg"
+    )
+endif()
+
+
 # 2. Setup Include Paths
 include_directories(
     "include" 
@@ -23,7 +33,17 @@ link_directories("${SDL3_DIR}/lib" "${SDL3_TTF_DIR}/lib" "${SDL3_IMAGE_DIR}/lib"
 # --- THE LIBRARY PART ---
 
 # 3. Reference the new 'src' path
-add_library(sdl_desktop_lib STATIC src/button.c src/label.c src/panel.c src/widget.c src/textbox.c src/window.c src/menu_bar.c src/file_dialog.c)
+add_library(sdl_desktop_lib STATIC
+    src/button.c
+    src/label.c 
+    src/panel.c 
+    src/widget.c 
+    src/textbox.c 
+    src/window.c 
+    src/menu_bar.c 
+    src/file_dialog.c
+    # src/video_player.c
+)
 target_link_libraries(sdl_desktop_lib SDL3 SDL3_ttf SDL3_image comdlg32 m) 
 
 # --- THE EXAMPLES PART ---
@@ -88,5 +108,66 @@ add_sqlite_example(
     demo_contacts
     examples/contacts.c
 )
+
+endif()
+
+option(
+    BUILD_VIDEO
+    "Enable video playback"
+    OFF
+)
+
+if(BUILD_VIDEO)
+
+if(NOT FFMPEG_DIR)
+    message(FATAL_ERROR
+        "BUILD_VIDEO=ON requires FFMPEG_DIR"
+    )
+endif()
+
+target_sources(
+    sdl_desktop_lib
+    PRIVATE
+    src/video_player.c
+)
+
+target_include_directories(
+    sdl_desktop_lib
+    PUBLIC
+    "${FFMPEG_DIR}/include"
+)
+
+target_link_directories(
+    sdl_desktop_lib
+    PUBLIC
+    "${FFMPEG_DIR}/lib"
+)
+
+target_link_libraries(
+    sdl_desktop_lib
+    avcodec
+    avformat
+    swscale
+    avutil
+)
+
+add_desktop_example(
+    demo_video
+    examples/video_demo.c
+)
+
+if(WIN32)
+    add_custom_command(TARGET demo_video POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${FFMPEG_DIR}/bin/avcodec-62.dll"   # <-- Check your FFMPEG_DIR/bin folder 
+        "${FFMPEG_DIR}/bin/avformat-62.dll"  # <-- and make sure these match the 
+        "${FFMPEG_DIR}/bin/swscale-9.dll"    # <-- exact numbers on your filenames!
+        "${FFMPEG_DIR}/bin/avutil-60.dll"
+        "${FFMPEG_DIR}/bin/avdevice-62.dll"
+        "${FFMPEG_DIR}/bin/avfilter-11.dll"
+        "${FFMPEG_DIR}/bin/swresample-6.dll"
+        $<TARGET_FILE_DIR:demo_video>
+    )
+endif()
 
 endif()

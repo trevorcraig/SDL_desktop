@@ -1,0 +1,14 @@
+cmake -B build -DSDL3_DIR="D:/libs/SDL3-3.4.0/x86_64-w64-mingw32" -DSDL3_TTF_DIR="D:/libs/SDL3_ttf-3.2.2/x86_64-w64-mingw32" -DSDL3_IMAGE_DIR="D:/libs/SDL3_image-3.4.0/x86_64-w64-mingw32" -DFFMPEG_DIR="D:/libs/ffmpeg"
+
+cmake -B build `
+  -G "MinGW Makefiles" `
+  -DCMAKE_C_COMPILER=gcc `
+  -DCMAKE_CXX_COMPILER=g++ `
+  -DSDL3_DIR="D:/libs/SDL3-3.4.0/x86_64-w64-mingw32" `
+  -DSDL3_TTF_DIR="D:/libs/SDL3_ttf-3.2.2/x86_64-w64-mingw32" `
+  -DSDL3_IMAGE_DIR="D:/libs/SDL3_image-3.4.0/x86_64-w64-mingw32" `
+  -DFFMPEG_DIR="D:/libs/ffmpeg"
+
+cmake -B build -G "MinGW Makefiles" -DSDL3_DIR="C:/libs/SDL3-3.4.0/x86_64-w64-mingw32" -DSDL3_TTF_DIR="C:/libs/SDL3_ttf-3.2.2/x86_64-w64-mingw32" -DSDL3_IMAGE_DIR="C:/libs/SDL3_image-3.4.0/x86_64-w64-mingw32" -DFFMPEG_DIR="C:/libs/ffmpeg"
+cmake -B build -DBUILD_VIDEO=ON
+cmake --build build
