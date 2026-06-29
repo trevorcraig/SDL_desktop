@@ -149,6 +149,7 @@ target_link_libraries(
     avformat
     swscale
     avutil
+    swresample
 )
 
 add_desktop_example(

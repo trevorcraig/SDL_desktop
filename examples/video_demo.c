@@ -122,7 +122,7 @@ static TTF_Font* LoadFont()
 int main()
 {
     SDL_Init(
-        SDL_INIT_VIDEO
+        SDL_INIT_VIDEO | SDL_INIT_AUDIO
     );
 
     TTF_Init();

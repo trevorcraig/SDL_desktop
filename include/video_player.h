@@ -6,6 +6,7 @@
 #include <libavformat/avformat.h>
 #include <libswscale/swscale.h>
 #include <libswresample/swresample.h>
+#include <libavutil/opt.h>
 #include "widget.h"
 
 typedef struct
@@ -43,6 +44,8 @@ typedef struct
     int audio_stream;
 
     AVCodecContext* audio_codec;
+    AVFrame* audio_frame;
+    bool recovering;
 
     SwrContext* swr;
 
@@ -85,3 +88,5 @@ bool VideoPlayer_Load(
     const char* file
 );
 void VideoPlayer_Seek(VideoPlayer* vp, double sec);
+
+static bool SetupAudio(VideoPlayer* vp);

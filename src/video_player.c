@@ -1,6 +1,154 @@
 #include "video_player.h"
 #include <stdio.h>
 
+
+static bool SetupAudio(
+    VideoPlayer* vp
+)
+{
+    if (
+        vp->audio_stream < 0
+    )
+    {
+        printf(
+            "No audio stream\n"
+        );
+
+        return false;
+    }
+
+    AVCodecParameters* p =
+        vp->format
+        ->streams[
+            vp->audio_stream
+        ]
+        ->codecpar;
+
+    const AVCodec* codec =
+        avcodec_find_decoder(
+            p->codec_id
+        );
+
+    if (!codec)
+    {
+        return false;
+    }
+
+    vp->audio_codec =
+        avcodec_alloc_context3(
+            codec
+        );
+
+    avcodec_parameters_to_context(
+        vp->audio_codec,
+        p
+    );
+
+    avcodec_open2(
+        vp->audio_codec,
+        codec,
+        NULL
+    );
+
+    vp->audio_frame =
+        av_frame_alloc();
+
+    SDL_AudioSpec spec =
+    {
+        .format =
+            SDL_AUDIO_F32,
+
+        .channels =
+            2,
+
+        .freq =
+            48000
+    };
+
+    vp->audio =
+        SDL_OpenAudioDeviceStream(
+            SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK,
+            &spec,
+            NULL,
+            NULL
+        );
+
+    if (!vp->audio)
+    {
+        printf(
+            "Audio create failed:\n%s\n",
+            SDL_GetError()
+        );
+
+        return false;
+    }
+
+    if (
+        vp->audio
+    )
+    {
+        // SDL_ResumeAudioStream(vp->audio);
+        SDL_ResumeAudioDevice(SDL_GetAudioStreamDevice(vp->audio));
+        // SDL_ResumeAudioStreamDevice(
+        //     vp->audio
+        // );
+    }
+
+    vp->swr =
+        swr_alloc();
+
+    av_opt_set_chlayout(
+        vp->swr,
+        "in_chlayout",
+        &vp->audio_codec->ch_layout,
+        0
+    );
+
+    AVChannelLayout stereo =
+        AV_CHANNEL_LAYOUT_STEREO;
+
+    av_opt_set_chlayout(
+        vp->swr,
+        "out_chlayout",
+        &stereo,
+        0
+    );
+
+    av_opt_set_int(
+        vp->swr,
+        "in_sample_rate",
+        vp->audio_codec->sample_rate,
+        0
+    );
+
+    av_opt_set_int(
+        vp->swr,
+        "out_sample_rate",
+        48000,
+        0
+    );
+
+    av_opt_set_sample_fmt(
+        vp->swr,
+        "in_sample_fmt",
+        vp->audio_codec->sample_fmt,
+        0
+    );
+
+    av_opt_set_sample_fmt(
+        vp->swr,
+        "out_sample_fmt",
+        AV_SAMPLE_FMT_FLT,
+        0
+    );
+
+    swr_init(
+        vp->swr
+    );
+
+    return true;
+}
+
 static bool PointInRect(
     float x,
     float y,
@@ -284,21 +432,11 @@ void VideoPlayer_Update(VideoPlayer* vp){
         // return early and keep displaying the current texture frame.
         if (real_elapsed_ms < frame_target_ms) {
             return; 
-        }
-        // if (!vp->seeking)
-        // {
-        //     uint64_t frame_target_ms =
-        //         (uint64_t)(vp->frame->pts * vp->time_base * 1000.0 / vp->speed);
-
-        //     uint64_t real_elapsed_ms =
-        //         SDL_GetTicks() - vp->start_time_ms;
-
-        //     if (real_elapsed_ms < frame_target_ms)
-        //         return;
-        // }        
+        }     
     }
 
     // 2. Time to read the next frame from the file
+ 
     if (av_read_frame(vp->format, vp->packet) >= 0)
     {
         if (vp->packet->stream_index == vp->stream)
@@ -327,6 +465,60 @@ void VideoPlayer_Update(VideoPlayer* vp){
                     vp->frame->data[1], vp->frame->linesize[1],
                     vp->frame->data[2], vp->frame->linesize[2]
                 );
+            }
+        }
+        else if (
+            vp->packet->stream_index
+            ==
+            vp->audio_stream
+        )
+        {
+            avcodec_send_packet(
+                vp->audio_codec,
+                vp->packet
+            );
+
+            while (
+                avcodec_receive_frame(
+                    vp->audio_codec,
+                    vp->audio_frame
+                ) == 0
+            )
+            {
+                float samples[
+                    8192
+                ];
+
+                uint8_t* out[] =
+                {
+                    (uint8_t*)samples
+                };
+
+                int frames =
+                    swr_convert(
+                        vp->swr,
+                        out,
+                        4096,
+                        (
+                            const uint8_t**)
+                            vp->audio_frame->data,
+                        vp->audio_frame->nb_samples
+                    );
+
+                if (
+                    frames > 0
+                )
+                {
+                    SDL_PutAudioStreamData(
+                        vp->audio,
+                        samples,
+                        frames
+                        *
+                        sizeof(float)
+                        *
+                        2
+                    );
+                }
             }
         }
         av_packet_unref(vp->packet);
@@ -361,6 +553,41 @@ void VideoPlayer_Destroy(
     if (vp->format)
     {
         avformat_close_input(&vp->format);
+    }
+    if (
+        vp->audio
+    )
+    {
+        SDL_DestroyAudioStream(
+            vp->audio
+        );
+    }
+
+    if (
+        vp->audio_frame
+    )
+    {
+        av_frame_free(
+            &vp->audio_frame
+        );
+    }
+
+    if (
+        vp->audio_codec
+    )
+    {
+        avcodec_free_context(
+            &vp->audio_codec
+        );
+    }
+
+    if (
+        vp->swr
+    )
+    {
+        swr_free(
+            &vp->swr
+        );
     }
 
 }
@@ -495,6 +722,7 @@ bool VideoPlayer_Load(
         NULL,
         0
     );
+    SetupAudio(vp);
 
     vp->stream =
         av_find_best_stream(
@@ -593,11 +821,13 @@ bool VideoPlayer_Load(
 
     return true;
 }
+
 void VideoPlayer_Seek(VideoPlayer* vp, double sec)
 {
     if (!vp || !vp->format) return;
 
     vp->seeking = true;
+    vp->recovering = true;
 
     int64_t ts = (int64_t)(sec / vp->time_base);
 
@@ -608,48 +838,34 @@ void VideoPlayer_Seek(VideoPlayer* vp, double sec)
         AVSEEK_FLAG_BACKWARD
     );
 
+    // 🔥 flush VIDEO decoder
     avcodec_flush_buffers(vp->codec);
 
-    vp->current_sec = sec;
+    // 🔥 flush AUDIO decoder 
+    if (vp->audio_codec)
+        avcodec_flush_buffers(vp->audio_codec);
+    // Audio rebuild    
+    swr_free(&vp->swr);
 
+    vp->swr = swr_alloc();
+
+    av_opt_set_chlayout(vp->swr, "in_chlayout", &vp->audio_codec->ch_layout, 0);
+
+    AVChannelLayout stereo = AV_CHANNEL_LAYOUT_STEREO;
+    av_opt_set_chlayout(vp->swr, "out_chlayout", &stereo, 0);
+
+    av_opt_set_int(vp->swr, "in_sample_rate", vp->audio_codec->sample_rate, 0);
+    av_opt_set_int(vp->swr, "out_sample_rate", 48000, 0);
+
+    av_opt_set_sample_fmt(vp->swr, "in_sample_fmt", vp->audio_codec->sample_fmt, 0);
+    av_opt_set_sample_fmt(vp->swr, "out_sample_fmt", AV_SAMPLE_FMT_FLT, 0);
+
+    swr_init(vp->swr);
+
+    vp->current_sec = sec;
     vp->first_frame = true;
 
-    // DO NOT trust timing after seek
     vp->start_time_ms = SDL_GetTicks();
+
+    vp->seeking = false;
 }
-// void VideoPlayer_Seek(
-//     VideoPlayer* vp,
-//     double sec
-// )
-// {
-//     int64_t ts =
-//         sec
-//         /
-//         vp->time_base;
-
-//     av_seek_frame(
-//         vp->format,
-//         vp->stream,
-//         ts,
-//         AVSEEK_FLAG_BACKWARD
-//     );
-
-//     avcodec_flush_buffers(
-//         vp->codec
-//     );
-
-//     vp->current_sec =
-//         sec;
-
-//     vp->start_time_ms =
-//         SDL_GetTicks()
-//         -
-//         (
-//             uint64_t
-//             )
-//             (
-//                 sec
-//                 *
-//                 1000
-//             );
-// }
