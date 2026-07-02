@@ -39,6 +39,7 @@ typedef struct
     double duration_sec;
 
     double current_sec;
+    double seek_target_sec;
 
     bool seeking;
     int audio_stream;
@@ -90,3 +91,25 @@ bool VideoPlayer_Load(
 void VideoPlayer_Seek(VideoPlayer* vp, double sec);
 
 static bool SetupAudio(VideoPlayer* vp);
+
+static bool DecodeVideoPacket(
+    VideoPlayer* vp
+);
+
+static bool DecodeAudioPacket(
+    VideoPlayer* vp
+);
+
+
+static void ResetSeekState(
+    VideoPlayer* vp,
+    double sec
+);
+
+static void ResetAudioResampler(
+    VideoPlayer* vp
+);
+
+static bool IsVideoFrameReady(
+    VideoPlayer* vp
+);

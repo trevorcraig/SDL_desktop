@@ -1,6 +1,48 @@
 #include "video_player.h"
 #include <stdio.h>
 
+static bool IsVideoFrameReady(
+    VideoPlayer* vp
+)
+{
+    if (
+        vp->first_frame
+    )
+    {
+        return true;
+    }
+
+    if (
+        vp->frame->pts
+        ==
+        AV_NOPTS_VALUE
+    )
+    {
+        return true;
+    }
+
+    uint64_t target_ms =
+        (
+            uint64_t
+        )(
+            vp->frame->pts
+            *
+            vp->time_base
+            *
+            1000.0
+        );
+
+    uint64_t elapsed_ms =
+        SDL_GetTicks()
+        -
+        vp->start_time_ms;
+
+    return (
+        elapsed_ms
+        >=
+        target_ms
+    );
+}
 
 static bool SetupAudio(
     VideoPlayer* vp
@@ -397,75 +439,105 @@ void VideoPlayer_Init(
     }
 }
 
-void VideoPlayer_Update(VideoPlayer* vp){
-    //--------------------------------
-    // No file loaded yet
-    //--------------------------------
+static bool DecodeAudioPacket(
+    VideoPlayer* vp
+)
+{
+    avcodec_send_packet(
+        vp->audio_codec,
+        vp->packet
+    );
 
+    bool played = false;
+
+    while (
+        avcodec_receive_frame(
+            vp->audio_codec,
+            vp->audio_frame
+        ) == 0
+    )
+    {
+        float samples[8192];
+
+        uint8_t* out[] =
+        {
+            (uint8_t*)samples
+        };
+
+        int frames =
+            swr_convert(
+                vp->swr,
+                out,
+                4096,
+                (const uint8_t**)vp->audio_frame->data,
+                vp->audio_frame->nb_samples
+            );
+
+        if (frames > 0)
+        {
+            SDL_PutAudioStreamData(
+                vp->audio,
+                samples,
+                frames *
+                sizeof(float) *
+                2
+            );
+
+            played = true;
+        }
+    }
+
+    return played;
+}
+
+void VideoPlayer_Update(
+    VideoPlayer* vp
+)
+{
     if (
         !vp ||
-        !vp->format ||
-        !vp->frame ||
-        !vp->packet ||
-        !vp->texture
+        !vp->playing ||
+        !vp->format
     )
     {
         return;
     }
-    // Paused    
-    if (!vp->playing){
+
+    //--------------------------------
+    // wait until current frame expires
+    //--------------------------------
+
+    if (
+        !IsVideoFrameReady(vp)
+    )
+    {
         return;
     }
-    // 1. If we have a frame ready, check if it's time to display it
-    if (vp->frame->pts != AV_NOPTS_VALUE && !vp->first_frame && !vp->seeking) {
-        // Calculate exactly how many milliseconds into the video this frame belongs
-        // uint64_t frame_target_ms = (uint64_t)(vp->frame->pts * vp->time_base * 1000.0);
-        uint64_t frame_target_ms =(uint64_t)(vp->frame->pts * vp->time_base * 1000.0/ vp->speed);
-        uint64_t real_elapsed_ms = SDL_GetTicks() - vp->start_time_ms;
-        // vp->current_sec = vp->frame->pts*vp->time_base;
-        if (vp->frame->pts != AV_NOPTS_VALUE)
-        {
-            vp->current_sec = vp->frame->pts * vp->time_base;
-        }
 
-        // If the real-world clock hasn't caught up to the frame's timestamp yet, 
-        // return early and keep displaying the current texture frame.
-        if (real_elapsed_ms < frame_target_ms) {
-            return; 
-        }     
-    }
+    //--------------------------------
+    // read until next video frame
+    //--------------------------------
 
-    // 2. Time to read the next frame from the file
- 
-    if (av_read_frame(vp->format, vp->packet) >= 0)
+    while (
+        av_read_frame(
+            vp->format,
+            vp->packet
+        ) >= 0
+    )
     {
-        if (vp->packet->stream_index == vp->stream)
+        bool got_video =
+            false;
+
+        if (
+            vp->packet->stream_index
+            ==
+            vp->stream
+        )
         {
-            avcodec_send_packet(vp->codec, vp->packet);
-
-            if (avcodec_receive_frame(vp->codec, vp->frame) == 0)
-            {
-                // Synchronize our master clock when the very first frame hits the screen
-                if (vp->first_frame) {
-                    vp->start_time_ms = SDL_GetTicks();
-                    vp->first_frame = false;
-                }
-                if (vp->seeking)
-                {
-                    vp->seeking = false;
-                    vp->first_frame = false;
-                    vp->start_time_ms = SDL_GetTicks();
-                }                
-
-                // Upload the validated frame to the GPU texture layout
-                SDL_UpdateYUVTexture(
-                    vp->texture,
-                    NULL,
-                    vp->frame->data[0], vp->frame->linesize[0],
-                    vp->frame->data[1], vp->frame->linesize[1],
-                    vp->frame->data[2], vp->frame->linesize[2]
+            got_video =
+                DecodeVideoPacket(
+                    vp
                 );
-            }
         }
         else if (
             vp->packet->stream_index
@@ -473,58 +545,93 @@ void VideoPlayer_Update(VideoPlayer* vp){
             vp->audio_stream
         )
         {
-            avcodec_send_packet(
-                vp->audio_codec,
-                vp->packet
+            DecodeAudioPacket(
+                vp
+            );
+        }
+
+        av_packet_unref(
+            vp->packet
+        );
+
+        if (
+            got_video
+        )
+        {
+            break;
+        }
+    }
+}
+
+
+
+static bool DecodeVideoPacket(
+    VideoPlayer* vp
+)
+{
+    avcodec_send_packet(
+        vp->codec,
+        vp->packet
+    );
+
+    if (
+        avcodec_receive_frame(
+            vp->codec,
+            vp->frame
+        )
+        != 0
+    )
+    {
+        return false;
+    }
+
+    if (
+        vp->first_frame
+    )
+    {
+        vp->start_time_ms =
+            SDL_GetTicks()
+            -
+            (
+                uint64_t
+            )(
+                vp->frame->pts
+                *
+                vp->time_base
+                *
+                1000.0
             );
 
-            while (
-                avcodec_receive_frame(
-                    vp->audio_codec,
-                    vp->audio_frame
-                ) == 0
-            )
-            {
-                float samples[
-                    8192
-                ];
-
-                uint8_t* out[] =
-                {
-                    (uint8_t*)samples
-                };
-
-                int frames =
-                    swr_convert(
-                        vp->swr,
-                        out,
-                        4096,
-                        (
-                            const uint8_t**)
-                            vp->audio_frame->data,
-                        vp->audio_frame->nb_samples
-                    );
-
-                if (
-                    frames > 0
-                )
-                {
-                    SDL_PutAudioStreamData(
-                        vp->audio,
-                        samples,
-                        frames
-                        *
-                        sizeof(float)
-                        *
-                        2
-                    );
-                }
-            }
-        }
-        av_packet_unref(vp->packet);
+        vp->first_frame =
+            false;
     }
-    
+
+    if (
+        vp->frame->pts
+        !=
+        AV_NOPTS_VALUE
+    )
+    {
+        vp->current_sec =
+            vp->frame->pts
+            *
+            vp->time_base;
+    }
+
+    SDL_UpdateYUVTexture(
+        vp->texture,
+        NULL,
+        vp->frame->data[0],
+        vp->frame->linesize[0],
+        vp->frame->data[1],
+        vp->frame->linesize[1],
+        vp->frame->data[2],
+        vp->frame->linesize[2]
+    );
+
+    return true;
 }
+
 
 void VideoPlayer_Destroy(
     VideoPlayer* vp
@@ -822,14 +929,27 @@ bool VideoPlayer_Load(
     return true;
 }
 
-void VideoPlayer_Seek(VideoPlayer* vp, double sec)
+void VideoPlayer_Seek(
+    VideoPlayer* vp,
+    double sec
+)
 {
-    if (!vp || !vp->format) return;
+    if (
+        !vp ||
+        !vp->format
+    )
+    {
+        return;
+    }
 
-    vp->seeking = true;
-    vp->recovering = true;
-
-    int64_t ts = (int64_t)(sec / vp->time_base);
+    int64_t ts =
+        (
+            int64_t
+        )(
+            sec
+            /
+            vp->time_base
+        );
 
     av_seek_frame(
         vp->format,
@@ -838,34 +958,34 @@ void VideoPlayer_Seek(VideoPlayer* vp, double sec)
         AVSEEK_FLAG_BACKWARD
     );
 
-    // 🔥 flush VIDEO decoder
-    avcodec_flush_buffers(vp->codec);
+    avcodec_flush_buffers(
+        vp->codec
+    );
 
-    // 🔥 flush AUDIO decoder 
-    if (vp->audio_codec)
-        avcodec_flush_buffers(vp->audio_codec);
-    // Audio rebuild    
-    swr_free(&vp->swr);
+    if (
+        vp->audio_codec
+    )
+    {
+        avcodec_flush_buffers(
+            vp->audio_codec
+        );
+    }
 
-    vp->swr = swr_alloc();
+    if (
+        vp->audio
+    )
+    {
+        SDL_ClearAudioStream(
+            vp->audio
+        );
+    }
 
-    av_opt_set_chlayout(vp->swr, "in_chlayout", &vp->audio_codec->ch_layout, 0);
+    vp->current_sec =
+        sec;
 
-    AVChannelLayout stereo = AV_CHANNEL_LAYOUT_STEREO;
-    av_opt_set_chlayout(vp->swr, "out_chlayout", &stereo, 0);
+    vp->first_frame =
+        true;
 
-    av_opt_set_int(vp->swr, "in_sample_rate", vp->audio_codec->sample_rate, 0);
-    av_opt_set_int(vp->swr, "out_sample_rate", 48000, 0);
-
-    av_opt_set_sample_fmt(vp->swr, "in_sample_fmt", vp->audio_codec->sample_fmt, 0);
-    av_opt_set_sample_fmt(vp->swr, "out_sample_fmt", AV_SAMPLE_FMT_FLT, 0);
-
-    swr_init(vp->swr);
-
-    vp->current_sec = sec;
-    vp->first_frame = true;
-
-    vp->start_time_ms = SDL_GetTicks();
-
-    vp->seeking = false;
+    vp->start_time_ms =
+        SDL_GetTicks();
 }
